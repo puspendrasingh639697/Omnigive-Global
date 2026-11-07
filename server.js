@@ -186,8 +186,8 @@ const server = http.createServer(app);
 
 // ✅ CORS Configuration (Sirf aapki website ko allow karein)
 const allowedOrigins = [
-  "http://localhost:5173",             // Local development
-  "http://localhost:3000",             // Local development (alternative)
+ "http://localhost:5173",
+  "http://localhost:3000",
   "https://ovmvigive-web.vercel.app"   // Aapki live website
 ];
 
