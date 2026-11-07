@@ -9,7 +9,7 @@ require('dotenv').config();
 
 // Configs
 const connectDB = require('./config/db');
-const admin = require('./config/firebase');
+// const admin = require('./config/firebase');
 
 // Models & Routes
 const anonymousRoutes = require('./routes/anonymousRoutes');
