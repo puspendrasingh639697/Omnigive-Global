@@ -91,8 +91,6 @@ exports.getDiscoveries = async (req, res) => {
     
     if (!currentUser) return res.status(404).json({ error: "User not found" });
 
-    console.log("Current User Looking For:", currentUser.lookingFor);
-
     let matchQuery = { _id: { $ne: currentUserId } }; 
     
     // Gender Filter
@@ -100,11 +98,10 @@ exports.getDiscoveries = async (req, res) => {
     else if (currentUser.lookingFor === 'Female') matchQuery.gender = 'Female';
 
     const allMatches = await User.find(matchQuery).select('-password').limit(50); 
-    console.log("Total users found by Gender filter:", allMatches.length);
 
     if (allMatches.length === 0) {
       return res.status(200).json({ 
-        message: "No users found for your gender preference. Invite more users!", 
+        message: "No users found", 
         count: 0, 
         users: [] 
       });
@@ -113,30 +110,23 @@ exports.getDiscoveries = async (req, res) => {
     const userPrefs = currentUser.preferences || {};
     const userInterests = userPrefs.interests || [];
 
-    // Matching Algorithm (Score calculation)
+    // ✅ Matching Algorithm (Score calculation)
     let scoredMatches = allMatches.map((user) => {
       const otherPrefs = user.preferences || {};
       let matchScore = 0;
 
-      // 1. Belief match (+1)
       if (otherPrefs.belief && otherPrefs.belief === userPrefs.belief) matchScore += 1;
-      
-      // 2. Vibe match (+1)
       if (otherPrefs.vibe && otherPrefs.vibe === userPrefs.vibe) matchScore += 1;
-      
-      // 3. Intent match (+1)
       if (otherPrefs.intent && otherPrefs.intent === userPrefs.intent) matchScore += 1;
-      
-      // 4. Age Range match (+1)
       if (otherPrefs.ageRange && otherPrefs.ageRange === userPrefs.ageRange) matchScore += 1;
 
-      // 5. Common Interests match (+2 per common interest)
       const otherInterests = otherPrefs.interests || [];
       const commonInterests = otherInterests.filter(interest => userInterests.includes(interest));
       if (commonInterests.length > 0) matchScore += (commonInterests.length * 2);
 
+      // ✅ Yahan maine fix kiya hai (user.toObject() use karke)
       return { 
-        ...user._doc, 
+        ...user.toObject(), 
         matchScore: matchScore 
       };
     });
@@ -146,8 +136,6 @@ exports.getDiscoveries = async (req, res) => {
 
     // Top 20 Results
     const finalMatches = scoredMatches.slice(0, 20);
-
-    console.log("Total users returned after algorithm:", finalMatches.length);
 
     res.status(200).json({ 
       message: "Discoveries fetched with match score", 
