@@ -1,13 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { updatePreferences, getMyProfile } = require('../controllers/userController');
-// ✅ Aapne jo middleware bheja hai usko yahan import kiya
-const authMiddleware = require('../middleware/authMiddleware'); // Path apne folder ke hisaab se check kar lena
 
-// Preferences update route
-router.put('/preferences', authMiddleware, updatePreferences);
+// Controller se saare functions import karo (getOptions bhi)
+const { updatePreferences, getMyProfile, getOptions } = require('../controllers/userController');
+const auth = require('../middleware/authMiddleware');
 
-// Profile fetch route
-router.get('/profile', authMiddleware, getMyProfile);
+// 1. Preferences save karne ke liye
+router.put('/preferences', auth, updatePreferences);
+
+// 2. Profile dekhne ke liye
+router.get('/profile', auth, getMyProfile);
+
+// 3. ✅ NAYA: Options fetch karne ke liye (Yeh frontend screen par list dikhayega)
+router.get('/options', auth, getOptions);
 
 module.exports = router;
