@@ -28,6 +28,7 @@
     "multer": "^2.5.0",
     "openai": "^6.49.0",
     "react-router-dom": "^7.18.5",
-    "socket.io": "^4.8.4"
+    "socket.io": "^4.8.4",
+    "streamifier": "^0.1.1"
   }
 }

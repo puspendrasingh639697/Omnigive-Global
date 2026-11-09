@@ -192,6 +192,7 @@ const connectDB = require('./config/db');
 // const admin = require('./config/firebase'); // Firebase commented (deployment ke liye)
 
 // Models & Routes
+const storyRoutes = require('./routes/storyRoutes');
 const anonymousRoutes = require('./routes/anonymousRoutes');
 const likeRoutes = require('./routes/likeRoutes');
 const aiRoutes = require('./routes/aiRoutes');
@@ -261,6 +262,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/like', likeRoutes);
 app.use('/api/anonymous', anonymousRoutes);
 app.use('/api/proposal', proposalRoutes);
+app.use('/api/story', storyRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
