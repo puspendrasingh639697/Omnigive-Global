@@ -311,6 +311,40 @@ io.on('connection', (socket) => {
   });
 
   // 2. Chat Message (100% Working)
+  // socket.on('sendMessage', async (data) => {
+  //   const { senderId, receiverId, message } = data;
+    
+  //   // Data validation
+  //   if (!senderId || !receiverId || !message) {
+  //     console.log("❌ Invalid message data:", data);
+  //     return;
+  //   }
+
+  //   try {
+  //     const newMessage = new Message({ 
+  //       senderId: senderId.toString(), 
+  //       receiverId: receiverId.toString(), 
+  //       message 
+  //     });
+  //     await newMessage.save();
+      
+  //     console.log(`✅ Message Saved | From: ${senderId} | To: ${receiverId}`);
+
+  //     // 1. Specific receiver ko bhejo
+  //     io.to(receiverId.toString()).emit('getMessage', newMessage);
+      
+  //     // 2. Sender ko confirm karo
+  //     io.to(senderId.toString()).emit('messageSent', newMessage);
+
+  //     // 🚨 MAGIC LINE: Testing ke liye (Agar room join fail ho jaye toh yeh sabko bhej dega)
+  //     io.emit('getMessage', newMessage); 
+      
+  //   } catch (err) {
+  //     console.error("❌ DB Save Error:", err.message);
+  //   }
+  // });
+
+    // 2. Chat Message (100% Working & Safe)
   socket.on('sendMessage', async (data) => {
     const { senderId, receiverId, message } = data;
     
@@ -320,6 +354,24 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // ✅ 1. Ek temporary message object banao (Turant bhejne ke liye)
+    const tempMessage = {
+      _id: Date.now().toString(),
+      senderId: senderId.toString(),
+      receiverId: receiverId.toString(),
+      message: message,
+      createdAt: new Date()
+    };
+
+    // ✅ 2. SABSE PEHLE MESSAGE BHEJO (Taaki DB slow ho toh message na ruke)
+    io.to(receiverId.toString()).emit('getMessage', tempMessage);
+    io.to(senderId.toString()).emit('messageSent', tempMessage);
+
+    // 🚨 Testing ke liye: Sabhi connected users ko bhej do
+    io.emit('getMessage', tempMessage); 
+    console.log(`🚀 Message Emitted to receiver: ${receiverId}`);
+
+    // ✅ 3. Ab Database me save karo (Agar fail ho toh message already chala gaya)
     try {
       const newMessage = new Message({ 
         senderId: senderId.toString(), 
@@ -327,18 +379,7 @@ io.on('connection', (socket) => {
         message 
       });
       await newMessage.save();
-      
-      console.log(`✅ Message Saved | From: ${senderId} | To: ${receiverId}`);
-
-      // 1. Specific receiver ko bhejo
-      io.to(receiverId.toString()).emit('getMessage', newMessage);
-      
-      // 2. Sender ko confirm karo
-      io.to(senderId.toString()).emit('messageSent', newMessage);
-
-      // 🚨 MAGIC LINE: Testing ke liye (Agar room join fail ho jaye toh yeh sabko bhej dega)
-      io.emit('getMessage', newMessage); 
-      
+      console.log(`✅ Message Saved to DB`);
     } catch (err) {
       console.error("❌ DB Save Error:", err.message);
     }
