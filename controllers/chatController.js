@@ -3,19 +3,19 @@ const Message = require('../models/Message');
 // Dono users ke beech ke purane messages nikaalne ke liye
 exports.getMessages = async (req, res) => {
   try {
-    const myId = req.user.id; // Middleware se aapki ID
-    const otherId = req.params.otherUserId; // URL se dusre user ki ID
+    // req.user me ID `id` ya `_id` ke naam se ho sakti hai
+    const myId = req.user.id || req.user._id; 
+    const otherId = req.params.otherUserId; 
 
-    // Database se wo saare messages nikalo jo ya toh aapne bheje hain
-    // ya aapko bheje gaye hain, aur dono ke beech mein hain
     const messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: otherId },
         { senderId: otherId, receiverId: myId }
       ]
-    }).sort({ createdAt: 1 }); // Purane messages pehle (time ke hisaab se)
+    }).sort({ createdAt: 1 }); // Purane messages pehle
 
-    res.status(200).json(messages);
+    // ✅ Frontend ke liye format theek karo (wo expect kar raha hai { messages: [...] })
+    res.status(200).json({ messages });
 
   } catch (error) {
     console.error("Fetch Messages Error:", error);
