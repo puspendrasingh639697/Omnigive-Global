@@ -97,37 +97,59 @@
 //   // 1. User Register & Online Status
 //   socket.on('addUser', async (userId) => {
 //     if (userId) {
-//       const uId = userId.toString(); // ✅ String me convert karo
+//       const uId = userId.toString(); // ✅ String conversion
 //       socket.userId = uId;
       
-//       // ✅ Room Join karo (String ID se)
-//       socket.join(uId); 
-      
+//       socket.join(uId); // ✅ Room join
 //       onlineUsers.add(uId);
       
-//       await User.findByIdAndUpdate(uId, { isOnline: true });
+//       try {
+//         await User.findByIdAndUpdate(uId, { isOnline: true });
+//       } catch (err) {
+//         console.log("Error updating online:", err.message);
+//       }
       
 //       io.emit('userOnline', uId);
-//       console.log(`User ${uId} is Online and joined room: ${uId}`);
+//       console.log(`✅ User ${uId} is Online and joined room: ${uId}`);
 //     }
 //   });
 
-//   // 2. Chat Message (FIXED)
+  
 //   socket.on('sendMessage', async (data) => {
 //     const { senderId, receiverId, message } = data;
-//     if (!senderId || !receiverId || !message) return;
+    
+//     // Data validation
+//     if (!senderId || !receiverId || !message) {
+//       console.log("❌ Invalid message data:", data);
+//       return;
+//     }
 
+//     // ✅ 1. Ek temporary message object banao (Turant bhejne ke liye)
+//     const tempMessage = {
+//       _id: Date.now().toString(),
+//       senderId: senderId.toString(),
+//       receiverId: receiverId.toString(),
+//       message: message,
+//       createdAt: new Date()
+//     };
+
+//     // ✅ 2. SABSE PEHLE MESSAGE BHEJO (Taaki DB slow ho toh message na ruke)
+//     io.to(receiverId.toString()).emit('getMessage', tempMessage);
+//     io.to(senderId.toString()).emit('messageSent', tempMessage);
+
+//     // 🚨 Testing ke liye: Sabhi connected users ko bhej do
+//     io.emit('getMessage', tempMessage); 
+//     console.log(`🚀 Message Emitted to receiver: ${receiverId}`);
+
+//     // ✅ 3. Ab Database me save karo (Agar fail ho toh message already chala gaya)
 //     try {
-//       const newMessage = new Message({ senderId, receiverId, message });
+//       const newMessage = new Message({ 
+//         senderId: senderId.toString(), 
+//         receiverId: receiverId.toString(), 
+//         message 
+//       });
 //       await newMessage.save();
-//       console.log(`✅ Message from ${senderId} to ${receiverId}: ${message}`);
-
-//       // ✅ RECEIVER KO MESSAGE BHEJO (String me convert karke)
-//       io.to(receiverId.toString()).emit('getMessage', newMessage);
-      
-//       // Sender ko confirm karo
-//       io.to(senderId.toString()).emit('messageSent', newMessage);
-
+//       console.log(`✅ Message Saved to DB`);
 //     } catch (err) {
 //       console.error("❌ DB Save Error:", err.message);
 //     }
@@ -144,7 +166,6 @@
 
 //   // --- VOICE / VIDEO CALL SIGNALING ---
   
-//   // 4. Call Initiate
 //   socket.on('callUser', ({ userToCall, signalData, from, name, isVideo }) => {
 //     console.log(`📞 Call from ${from} to ${userToCall} (Video: ${isVideo})`);
 //     io.to(userToCall.toString()).emit('callUser', {
@@ -155,20 +176,15 @@
 //     });
 //   });
 
-//   // 5. Call Accepted
 //   socket.on('answerCall', (data) => {
-//     console.log(`📞 Call accepted by ${data.to}`);
 //     io.to(data.to.toString()).emit('callAccepted', data.signal);
 //   });
 
-//   // 6. ICE Candidate Exchange (WebRTC Connection ke liye)
 //   socket.on('iceCandidate', ({ to, candidate }) => {
 //     io.to(to.toString()).emit('iceCandidate', candidate);
 //   });
 
-//   // 7. End Call
 //   socket.on('endCall', ({ to }) => {
-//     console.log(`📞 Call ended to ${to}`);
 //     io.to(to.toString()).emit('callEnded');
 //   });
 
@@ -177,16 +193,17 @@
 //     if (socket.userId) {
 //       onlineUsers.delete(socket.userId);
       
-//       // Database me offline true karo aur last seen update karo
-//       await User.findByIdAndUpdate(socket.userId, { 
-//         isOnline: false, 
-//         lastSeen: Date.now() 
-//       });
+//       try {
+//         await User.findByIdAndUpdate(socket.userId, { 
+//           isOnline: false, 
+//           lastSeen: Date.now() 
+//         });
+//       } catch (err) {}
       
 //       io.emit('userOffline', socket.userId);
-//       console.log(`User ${socket.userId} is Offline`);
+//       console.log(`🔴 User ${socket.userId} is Offline`);
 //     }
-//     console.log('🔴 User disconnected:', socket.id);
+//     console.log('🔴 Socket disconnected:', socket.id);
 //   });
 // });
 
@@ -206,6 +223,7 @@ require('dotenv').config();
 
 // Configs
 const connectDB = require('./config/db');
+const admin = require('./config/firebase'); // ✅ Firebase Admin import kiya
 
 // Models & Routes
 const storyRoutes = require('./routes/storyRoutes');
@@ -252,7 +270,9 @@ const io = new Server(server, {
     origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
-  }
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 // Socket.IO ko app mein set karein
@@ -293,10 +313,10 @@ io.on('connection', (socket) => {
   // 1. User Register & Online Status
   socket.on('addUser', async (userId) => {
     if (userId) {
-      const uId = userId.toString(); // ✅ String conversion
+      const uId = userId.toString(); 
       socket.userId = uId;
       
-      socket.join(uId); // ✅ Room join
+      socket.join(uId); 
       onlineUsers.add(uId);
       
       try {
@@ -310,51 +330,15 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 2. Chat Message (100% Working)
-  // socket.on('sendMessage', async (data) => {
-  //   const { senderId, receiverId, message } = data;
-    
-  //   // Data validation
-  //   if (!senderId || !receiverId || !message) {
-  //     console.log("❌ Invalid message data:", data);
-  //     return;
-  //   }
-
-  //   try {
-  //     const newMessage = new Message({ 
-  //       senderId: senderId.toString(), 
-  //       receiverId: receiverId.toString(), 
-  //       message 
-  //     });
-  //     await newMessage.save();
-      
-  //     console.log(`✅ Message Saved | From: ${senderId} | To: ${receiverId}`);
-
-  //     // 1. Specific receiver ko bhejo
-  //     io.to(receiverId.toString()).emit('getMessage', newMessage);
-      
-  //     // 2. Sender ko confirm karo
-  //     io.to(senderId.toString()).emit('messageSent', newMessage);
-
-  //     // 🚨 MAGIC LINE: Testing ke liye (Agar room join fail ho jaye toh yeh sabko bhej dega)
-  //     io.emit('getMessage', newMessage); 
-      
-  //   } catch (err) {
-  //     console.error("❌ DB Save Error:", err.message);
-  //   }
-  // });
-
-    // 2. Chat Message (100% Working & Safe)
+  // 2. Chat Message (With FCM Notification)
   socket.on('sendMessage', async (data) => {
     const { senderId, receiverId, message } = data;
     
-    // Data validation
     if (!senderId || !receiverId || !message) {
       console.log("❌ Invalid message data:", data);
       return;
     }
 
-    // ✅ 1. Ek temporary message object banao (Turant bhejne ke liye)
     const tempMessage = {
       _id: Date.now().toString(),
       senderId: senderId.toString(),
@@ -363,15 +347,13 @@ io.on('connection', (socket) => {
       createdAt: new Date()
     };
 
-    // ✅ 2. SABSE PEHLE MESSAGE BHEJO (Taaki DB slow ho toh message na ruke)
+    // Message Emit karo
     io.to(receiverId.toString()).emit('getMessage', tempMessage);
     io.to(senderId.toString()).emit('messageSent', tempMessage);
+    io.emit('getMessage', tempMessage); // Testing line
+    console.log(`🚀 Message Emitted`);
 
-    // 🚨 Testing ke liye: Sabhi connected users ko bhej do
-    io.emit('getMessage', tempMessage); 
-    console.log(`🚀 Message Emitted to receiver: ${receiverId}`);
-
-    // ✅ 3. Ab Database me save karo (Agar fail ho toh message already chala gaya)
+    // Database me save karo
     try {
       const newMessage = new Message({ 
         senderId: senderId.toString(), 
@@ -382,6 +364,27 @@ io.on('connection', (socket) => {
       console.log(`✅ Message Saved to DB`);
     } catch (err) {
       console.error("❌ DB Save Error:", err.message);
+    }
+
+    // ✅ FCM Push Notification Bhejo
+    try {
+      const receiver = await User.findById(receiverId);
+      const sender = await User.findById(senderId);
+      
+      if (receiver && receiver.fcmToken) {
+        const payload = {
+          notification: {
+            title: `New Message from ${sender ? sender.name : 'Someone'} 💬`,
+            body: message,
+          },
+          token: receiver.fcmToken,
+        };
+        
+        await admin.messaging().send(payload);
+        console.log("✅ Chat Notification Sent to:", receiver.name);
+      }
+    } catch (error) {
+      console.log("❌ Notification Error:", error.message);
     }
   });
 
@@ -396,14 +399,34 @@ io.on('connection', (socket) => {
 
   // --- VOICE / VIDEO CALL SIGNALING ---
   
-  socket.on('callUser', ({ userToCall, signalData, from, name, isVideo }) => {
+  socket.on('callUser', async ({ userToCall, signalData, from, name, isVideo }) => {
     console.log(`📞 Call from ${from} to ${userToCall} (Video: ${isVideo})`);
+    
+    // Call Signal Emit
     io.to(userToCall.toString()).emit('callUser', {
       signal: signalData,
       from,
       name,
       isVideo,
     });
+
+    // ✅ FCM Push Notification Bhejo (Incoming Call)
+    try {
+      const receiver = await User.findById(userToCall);
+      if (receiver && receiver.fcmToken) {
+        const payload = {
+          notification: {
+            title: `Incoming ${isVideo ? 'Video' : 'Audio'} Call from ${name} 📞`,
+            body: `Tap to answer the call.`,
+          },
+          token: receiver.fcmToken,
+        };
+        await admin.messaging().send(payload);
+        console.log("✅ Call Notification Sent");
+      }
+    } catch (error) {
+      console.log("❌ Call Notification Error:", error.message);
+    }
   });
 
   socket.on('answerCall', (data) => {
