@@ -301,10 +301,59 @@ exports.getUserProfileById = async (req, res) => {
 };
 
 // Apni profile update karne ke liye (Naam, Bio, Photo change)
+// exports.updateProfile = async (req, res) => {
+//   try {
+//     const { name, bio, city, age, gender, lookingFor } = req.body;
+//     let profilePic = req.body.profilePic; // Purana pic URL
+
+//     // Agar nayi image aayi hai (Form-Data me se)
+//     if (req.file) {
+//       const uploadFromBuffer = (req) => {
+//         return new Promise((resolve, reject) => {
+//           const cld_upload_stream = cloudinary.uploader.upload_stream(
+//             { folder: "omnigive_profiles" },
+//             (error, result) => {
+//               if (result) resolve(result);
+//               else reject(error);
+//             }
+//           );
+//           streamifier.createReadStream(req.file.buffer).pipe(cld_upload_stream);
+//         });
+//       };
+//       const result = await uploadFromBuffer(req);
+//       profilePic = result.secure_url;
+//     }
+
+//     // Sirf wahi fields update hongi jo bheji gayi hain
+//     const updatedUser = await User.findByIdAndUpdate(
+//       req.user.id || req.user._id,
+//       { 
+//         $set: { 
+//           name: name || undefined, 
+//           bio: bio || undefined, 
+//           city: city || undefined,
+//           age: age || undefined,
+//           gender: gender || undefined,
+//           lookingFor: lookingFor || undefined,
+//           profilePic: profilePic || undefined
+//         } 
+//       },
+//       { new: true }
+//     ).select('-password');
+
+//     res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
+//   } catch (error) {
+//     console.error("Update profile error:", error);
+//     res.status(500).json({ error: "Failed to update profile" });
+//   }
+// };
+
+// Apni profile update karne ke liye (Naam, Bio, Photo, FCM Token change)
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, bio, city, age, gender, lookingFor } = req.body;
-    let profilePic = req.body.profilePic; // Purana pic URL
+    // ✅ 1. Yahan fcmToken ko bhi req.body se nikaalo
+    const { name, bio, city, age, gender, lookingFor, fcmToken } = req.body;
+    let profilePic = req.body.profilePic; 
 
     // Agar nayi image aayi hai (Form-Data me se)
     if (req.file) {
@@ -335,7 +384,8 @@ exports.updateProfile = async (req, res) => {
           age: age || undefined,
           gender: gender || undefined,
           lookingFor: lookingFor || undefined,
-          profilePic: profilePic || undefined
+          profilePic: profilePic || undefined,
+          fcmToken: fcmToken || undefined // ✅ 2. Yahan token database me save hoga
         } 
       },
       { new: true }
